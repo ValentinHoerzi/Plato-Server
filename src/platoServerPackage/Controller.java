@@ -14,6 +14,7 @@ import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Button;
+import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 
 /**
@@ -28,7 +29,21 @@ public class Controller implements Initializable {
     @FXML
     private ListView<String> listView;
     private ObservableList<String> observeListView;
-
+    @FXML
+    private Label labelTopLeftCorner;
+    @FXML
+    private Label labelTopRightCorner;
+    @FXML
+    private Label labelDownLeft;
+    @FXML
+    private Label labelDownRight;
+    @FXML
+    private Label labelShowRuntime;
+    @FXML
+    private Label labelShowClients;
+    
+    
+    
     public ObservableList<String> getObserveListView()
     {
         return observeListView;
@@ -36,6 +51,8 @@ public class Controller implements Initializable {
 
     /**
      * Initializes the controller class.
+     * @param url
+     * @param rb
      */
     @Override
     public void initialize(URL url, ResourceBundle rb)
@@ -45,10 +62,10 @@ public class Controller implements Initializable {
     }
 
     @FXML
-    private void handleButtonAction(ActionEvent event)
+    private void handleButtonStart(ActionEvent event)
     {
-        Thread t = new Thread(new Server());
-        t.start();
+        Thread runningThread = new Thread(new Server());
+        runningThread.start();
         buttonStartServer.setDisable(true);
     }
 

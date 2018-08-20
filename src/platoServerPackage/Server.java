@@ -24,6 +24,7 @@ import javax.swing.text.EditorKit;
 public class Server implements Runnable{
 
     private static final int PORT_NUMBER = 12345;
+    public static boolean run = true;
 
     public static void start()
     {
@@ -32,6 +33,7 @@ public class Server implements Runnable{
         List<ServerThread> ClientList = new ArrayList<>();
         Map<String, List<ServerThread>> RoomMap = new TreeMap<>();
         List<String> listNames = new ArrayList<>();
+        
         //</editor-fold>
        //<editor-fold defaultstate="collapsed" desc="Booting Server">
         
@@ -49,7 +51,7 @@ public class Server implements Runnable{
         Platform.runLater(() -> Main.getController().getObserveListView().add("Booting Successful"));
         System.out.println("Booting Successful");
         //</editor-fold>
-        while (true)
+        while (run)
         {
             Socket clientSocket = null;
                 try

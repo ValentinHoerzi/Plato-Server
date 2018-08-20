@@ -1,0 +1,34 @@
+.buttonStart, .buttonEnd{
+    -fx-cursor: hand;
+}
+
+.buttonStart:hover{
+    color: #66ff66;
+}
+
+.buttonStart{
+    -fx-background-color: #00ff00;
+    -fx-border-color: black;
+    -fx-border-style: solid;
+    -fx-border-width: 2px;
+}
+
+.labelTopLeft, .labelTopRight, .labelDownLeft, .labelDownRight{
+    -fx-border-color: black;
+    -fx-border-style: solid;
+    -fx-background-color: white;
+}
+
+.labelDownRight, .labelDownLeft{
+    visibility: hidden;
+}
+
+#AnchorPane{
+    -fx-background-color: aquamarine;
+}
+
+.list-view{
+    -fx-border-color: black;
+    -fx-border-width: 2px;
+    
+}

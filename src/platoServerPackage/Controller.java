@@ -5,17 +5,13 @@
  */
 package platoServerPackage;
 
-import java.net.URL;
-import java.sql.DatabaseMetaData;
+import java.net.*;
 import java.util.ResourceBundle;
-import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
+import javafx.application.Platform;
+import javafx.collections.*;
 import javafx.event.ActionEvent;
-import javafx.fxml.FXML;
-import javafx.fxml.Initializable;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
-import javafx.scene.control.ListView;
+import javafx.fxml.*;
+import javafx.scene.control.*;
 
 /**
  * FXML Controller class
@@ -41,16 +37,10 @@ public class Controller implements Initializable {
     private Label labelShowRuntime;
     @FXML
     private Label labelShowClients;
-    
-    
-    
-    public ObservableList<String> getObserveListView()
-    {
-        return observeListView;
-    }
 
     /**
      * Initializes the controller class.
+     *
      * @param url
      * @param rb
      */
@@ -59,6 +49,8 @@ public class Controller implements Initializable {
     {
         observeListView = FXCollections.observableArrayList();
         listView.setItems(observeListView);
+        labelShowClients.setText("0");
+        labelShowRuntime.setText("00:00:00");
     }
 
     @FXML
@@ -67,6 +59,65 @@ public class Controller implements Initializable {
         Thread runningThread = new Thread(new Server());
         runningThread.start();
         buttonStartServer.setDisable(true);
+
+        //<editor-fold defaultstate="collapsed" desc="Displaying Time">
+        Thread controllTime = new Thread(new Runnable() {
+            int second = 0;
+            int secondI = 0;
+            int minute = 0;
+            int minuteI = 0;
+            int hourI = 0;
+            int hour = 0;
+
+            @Override
+            public void run()
+            {
+                //(hourIhour:minuteIminute:secondIsecond)
+                while (true)
+                {
+                    try
+                    {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException ex)
+                    {
+                        ex.printStackTrace();
+                    }
+                    second++;
+                    if (second % 10 == 0)
+                    {
+                        second = 0;
+                        secondI++;
+                    }
+                    if (secondI == 6)
+                    {
+                        secondI = 0;
+                        minute++;
+                    }
+                    if (minute != 0 && minute % 10 == 0)
+                    {
+                        minute = 0;
+                        minuteI++;
+                    }
+                    if (minuteI == 6)
+                    {
+                        minuteI = 0;
+                        hour++;
+                    }
+                    if (hour != 0 && hour % 10 == 0)
+                    {
+                        hour = 0;
+                        hourI++;
+                    }
+                    Platform.runLater(() -> labelShowRuntime.setText(String.valueOf(hourI) + String.valueOf(hour) + ":" + String.valueOf(minuteI) + String.valueOf(minute) + ":" + String.valueOf(secondI) + String.valueOf(second)));
+                }
+            }
+        });
+        controllTime.start();
+        //</editor-fold>
     }
 
+    public void writeOnListView(String string)
+    {
+        observeListView.add(string);
+    }
 }

@@ -10,16 +10,11 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Calendar;
 import java.util.Collections;
-import java.util.Date;
 import java.util.List;
 import java.util.Map;
-import java.util.Scanner;
 import java.util.Set;
-import javafx.application.Platform;
 
 /**
  *
@@ -28,215 +23,194 @@ import javafx.application.Platform;
 public class ServerThread implements Runnable {
 
     private final Socket clientSocket;
-    private final BufferedReader reader;
-    private final PrintWriter writer;
-    private final Scanner scanner;
-    private List<ServerThread> ClientList;
-    private List<String> listNames;
+    private final BufferedReader inputStreamReader;
+    private final PrintWriter printWriter;
+    private final List<ServerThread> listOfClients;
+    private final List<String> namesInNetwork;
     private String userName;
-    private Map<String, List<ServerThread>> RoomMap;
+    private final Map<String, List<ServerThread>> availableRooms;
     private boolean inRoom = false;
-    private String roomName = "";
+    private String currentRoom = "";
+    private final Controller mainController = Main.getController();
 
-    ServerThread(Socket clientSocket, List<ServerThread> RunnableList, Map<String, List<ServerThread>> RoomMap, List<String> listNames) throws IOException
-    {
+    ServerThread(Socket clientSocket, List<ServerThread> RunnableList, Map<String, List<ServerThread>> RoomMap, List<String> listNames) throws IOException {
         this.clientSocket = clientSocket;
-        this.writer = new PrintWriter(this.clientSocket.getOutputStream(), true);
-        this.reader = new BufferedReader(new InputStreamReader(this.clientSocket.getInputStream()));
-        this.scanner = new Scanner(System.in);
-        this.ClientList = RunnableList;
-        this.RoomMap = RoomMap;
-        this.listNames = listNames;
+        this.listOfClients = RunnableList;
+        this.availableRooms = RoomMap;
+        this.namesInNetwork = listNames;
 
+        this.printWriter = new PrintWriter(this.clientSocket.getOutputStream(), true);
+        this.inputStreamReader = new BufferedReader(new InputStreamReader(this.clientSocket.getInputStream()));
     }
 
     @Override
-    public void run()
+    public void run() //needs to be tested
     {
 
-        String string = null;
-        try
-        {
-            string = reader.readLine();
-        } catch (IOException ex)
-        {
-            Platform.runLater(() -> Main.getController().getObserveListView().add("Error at reading String at ServerThread : 61"));
-            System.err.println("Error at reading Stirng at ServerThread : 61");
+        //Starts reading a message sent by the client
+        String message = null;
+        try {
+            message = inputStreamReader.readLine();
+        } catch (IOException ex) {
+            mainController.writeOnListView("Error at reading String at ServerThread (last edit: line 60)");
+            System.err.println("Error at reading Stirng at ServerThread (last edit: line 60)");
+            ex.printStackTrace();
         }
 
-        while (true)
-        {
-            if (handleCommands(string))
-            {
-                try
-                {
+        //Repeats reading messages sent by the client
+        while (true) {
+
+            //handleCommands returns true, if the clients operates any operation which leads to the shutdown of the client and thus loosing the communication
+            if (handleCommands(message)) {
+                try {
                     clientSocket.close();
-                } catch (IOException ex)
-                {
-                    Platform.runLater(() -> Main.getController().getObserveListView().add("Error at closing Socket at ServerThread : 73"));
-                    System.err.println("Error at closing Socket at ServerThread : 73");
+                } catch (IOException ex) {
+                    mainController.writeOnListView("Error at closing Socket at ServerThread (last edit: line 76)");
+                    System.err.println("Error at closing Socket at ServerThread (last edit: line 76)");
                 }
                 return;
             }
 
-            try
-            {
-                string = reader.readLine();
-            } catch (IOException ex) //LINE IF USER CLOSES WINDOW
-            {
-                listNames.remove(userName);
-                ClientList.forEach(w -> w.writer.println(listNames));
-                ClientList.remove(this);
-                try
-                {
+            //If reading the message throws an error (Client closing its window, Connection Lost) the server disconnects with the client in order to prevent further errors
+            try {
+                message = inputStreamReader.readLine();
+            } catch (IOException ex) {
+                namesInNetwork.remove(userName);
+                listOfClients.forEach(w -> w.printWriter.println(namesInNetwork));
+                listOfClients.remove(this);
+                try {
                     clientSocket.close();
+
+                    mainController.writeOnListView("User disconnected at " + Main.getTime());
                     System.out.println("User disconnected at " + Main.getTime());
-                    Platform.runLater(() -> Main.getController().getObserveListView().add("User disconnected at " + Main.getTime()));
-                    ClientList.forEach(s -> s.writer.println(userName + " disconnected "));
+
+                    listOfClients.forEach(s -> s.printWriter.println(userName + " disconnected"));
                     return;
-                } catch (IOException ex1)
-                {
-                    Platform.runLater(() -> Main.getController().getObserveListView().add("Error at closing Client at ServerThread : 87"));
-                    System.err.println("Error at closing Client at ServerThread : 87");
+                } catch (IOException ex1) {
+                    mainController.writeOnListView("Error at closing Client at ServerThread");
+                    System.err.println("Error at closing Client at ServerThread");
+                    ex1.printStackTrace();
                 }
-                Platform.runLater(() -> Main.getController().getObserveListView().add("Error at reading Stirng at ServerThread : 89"));
-                System.err.println("Error at reading Stirng at ServerThread : 89");
+
+                mainController.writeOnListView("Error at reading Stirng at ServerThread");
+                System.err.println("Error at reading Stirng at ServerThread");
+                ex.printStackTrace();
             }
         }
     }
 
-    private boolean handleCommands(String input)
+    private boolean handleCommands(String input) //this method has to be overwritten and cleaned
     {
-        if (input.startsWith("<login=")) //geht
-        {
+        if (input.startsWith("<login=")) {
             userName = input.split("=")[1].replace(">", "");
-            ClientList.forEach(w -> w.writer.println("-" + userName + "- just joined the chat"));
-            listNames.add(userName);
-            ClientList.forEach(w -> w.writer.println(listNames));
-        } else if (input.startsWith("<logout>")) //geht
-        {
-            ClientList.forEach(w -> w.writer.println("-" + userName + "- left"));
-            listNames.remove(userName);
-            ClientList.forEach(w -> w.writer.println(listNames));
-            ClientList.remove(this);
-            Platform.runLater(() -> Main.getController().getObserveListView().add("Connection canceled"));
-            System.out.println("Connection canceled");
+            listOfClients.forEach(clients -> clients.printWriter.println("-" + userName + "- just joined the chat"));
+            namesInNetwork.add(userName);
+            listOfClients.forEach(clients -> clients.printWriter.println(namesInNetwork));
+
+        } else if (input.startsWith("<logout>")) {
+            listOfClients.forEach(clients -> clients.printWriter.println("-" + userName + "- left"));
+            namesInNetwork.remove(userName);
+            listOfClients.forEach(clients -> clients.printWriter.println(namesInNetwork));
+            listOfClients.remove(this);
+            mainController.writeOnListView("User disconnected at " + Main.getTime());
+            System.out.println("User disconnected at " + Main.getTime());
             return true;
-        } else if (input.startsWith("<getClients>")) //geht
-        {
-            ClientList.forEach(w -> writer.println(w.userName));
-        } else if (input.startsWith("<send=")) //geht
-        {
+
+        } else if (input.startsWith("<getClients>")) {
+            listOfClients.forEach(clients -> printWriter.println(clients.userName));
+
+        } 
+        //<editor-fold defaultstate="collapsed" desc="Private Message Section"> 
+        else if (input.startsWith("<send=")) {
             boolean found = false;
             String username = input.split("=")[1].split(">")[0];
-            for (ServerThread user : ClientList)
-            {
-                if (user.userName.equals(username))
-                {
-                    user.writer.println("{Private Message} " + userName + ": " + input.split(">")[1].split(";")[0]);
+            for (ServerThread user : listOfClients) {
+                if (user.userName.equals(username)) {
+                    user.printWriter.println("{Private Message} " + userName + ": " + input.split(">")[1].split(";")[0]);
                     found = true;
                 }
             }
-            if (!found)
-            {
+            if (!found) {
                 username = input.split(">")[1].split(";")[1];
-                for (ServerThread user : ClientList)
-                {
-                    if (user.userName.equals(username))
-                    {
-                        user.writer.println("Couldn't find that user");
+                for (ServerThread user : listOfClients) {
+                    if (user.userName.equals(username)) {
+                        user.printWriter.println("Couldn't find that user");
                         found = true;
                     }
                 }
             }
-        } else if (input.startsWith("<join="))
-        {
-            if (!inRoom)
-            {
+            //</editor-fold>
+        //<editor-fold defaultstate="collapsed" desc="Room Section">
+        } else if (input.startsWith("<join=")) {
+            if (!inRoom) {
                 boolean found = false;
-                roomName = input.split("=")[1].split(">")[0];
-                for (String string : RoomMap.keySet())
-                {
-                    if (string.equals(roomName))
-                    {
+                currentRoom = input.split("=")[1].split(">")[0];
+                for (String string : availableRooms.keySet()) {
+                    if (string.equals(currentRoom)) {
                         found = true;
-                        RoomMap.get(roomName).add(this);
+                        availableRooms.get(currentRoom).add(this);
                     }
                 }
-                if (!found)
-                {
+                if (!found) {
                     List<ServerThread> temp = new ArrayList<>();
                     temp.add(this);
-                    RoomMap.putIfAbsent(roomName, temp);
+                    availableRooms.putIfAbsent(currentRoom, temp);
                 }
-                RoomMap.get(roomName).forEach((ServerThread s) -> s.writer.println(userName + " just joined the room" + " [" + roomName + "]"));
+                availableRooms.get(currentRoom).forEach((ServerThread s) -> s.printWriter.println(userName + " just joined the room" + " [" + currentRoom + "]"));
                 inRoom = true;
-            } else
-            {
+            } else {
                 String username = input.split("=")[1].split(">")[1];
-                for (ServerThread s : ClientList)
-                {
-                    if (s.userName.equals(username))
-                    {
-                        s.writer.println("You already are in a room");
-                    }
-                }
-            }
-        } else if (input.startsWith("<leave>"))
-        {
-            RoomMap.get(roomName).forEach(s -> s.writer.println(userName + " left the room" + " [" + roomName + "]"));
 
-            RoomMap.get(roomName).remove(this);
-
-            if (RoomMap.get(roomName).isEmpty())
-            {
-                RoomMap.remove(roomName);
+                listOfClients.stream().filter((s) -> (s.userName.equals(username))).forEachOrdered((s)
+                        -> {
+                    s.printWriter.println("You already are in a room");
+                });
             }
-            roomName = "";
+        } else if (input.startsWith("<leave>")) {
+            availableRooms.get(currentRoom).forEach(s -> s.printWriter.println(userName + " left the room" + " [" + currentRoom + "]"));
+
+            availableRooms.get(currentRoom).remove(this);
+
+            if (availableRooms.get(currentRoom).isEmpty()) {
+                availableRooms.remove(currentRoom);
+            }
+            currentRoom = "";
             inRoom = false;
-        } else if (input.startsWith("<getRooms>"))
-        {
+        } else if (input.startsWith("<getRooms>")) {
             String name = input.split(">")[1];
-            Set<String> keySet = RoomMap.keySet();
-            if (keySet.isEmpty())
-            {
-                for (ServerThread user : ClientList)
-                {
-                    if (user.userName.equals(name))
-                    {
-                        user.writer.println("No Rooms available");
+            Set<String> keySet = availableRooms.keySet();
+            if (keySet.isEmpty()) {
+                for (ServerThread user : listOfClients) {
+                    if (user.userName.equals(name)) {
+                        user.printWriter.println("No Rooms available");
                     }
                     return false;
                 }
             }
 
-            ClientList.stream().filter((user) -> (user.userName.equals(name))).forEachOrdered((ServerThread user) ->
-            {
-                keySet.stream().map((string) ->
-                {
-                    user.writer.println("--" + string + "--");
+            listOfClients.stream().filter((user) -> (user.userName.equals(name))).forEachOrdered((ServerThread user)
+                    -> {
+                keySet.stream().map((string)
+                        -> {
+                    user.printWriter.println("--" + string + "--");
                     return string;
-                }).forEachOrdered((string) ->
-                {
-                    Collections.sort(RoomMap.get(string), (ServerThread o1, ServerThread o2) -> o1.userName.compareTo(o2.userName));
-                    RoomMap.get(string).forEach((k) -> user.writer.println("-> " + k.userName));
+                }).forEachOrdered((string)
+                        -> {
+                    Collections.sort(availableRooms.get(string), (ServerThread o1, ServerThread o2) -> o1.userName.compareTo(o2.userName));
+                    availableRooms.get(string).forEach((k) -> user.printWriter.println("-> " + k.userName));
                 });
             });
-        } else
-        {
-            if (inRoom)
-            {
-                RoomMap.get(roomName).forEach(s ->
-                {
-                    if (!s.equals(this))
-                    {
-                        s.writer.println("[" + roomName + "] " + userName + ": " + input);
+        } //</editor-fold>
+        else {
+            if (inRoom) {
+                availableRooms.get(currentRoom).forEach(client -> {
+                    if (!client.equals(this)) {
+                        client.printWriter.println("[" + currentRoom + "] " + userName + ": " + input);
                     }
                 });
 
-            } else
-            {
-                ClientList.forEach(s -> s.writer.println(userName + ": " + input));
+            } else {
+                listOfClients.forEach(s -> s.printWriter.println(userName + ": " + input));
             }
         }
         return false;
